@@ -99,6 +99,7 @@ router.post('/leaveIndividual',async(req,res)=>{
 })
 
 router.post('/getAbsentees',async(req,res)=>{
+  
   const { day } = req.query;
   const regisnos = await Student.aggregate([
     {
@@ -335,7 +336,7 @@ const aggregationPipeline = [
 router.get("/insertDoc",async(req,res)=>{
     const date = new Date()
     await Student.create({
-      date: format('2024-01-20','yyyy-MM-dd'),
+      date: format('2024-03-15','yyyy-MM-dd'),
       depart: 'CSE',
       section: 'C',
       batch:2021,
@@ -409,6 +410,22 @@ router.post("/login", async (req, res) => {
     res.json({ errors, status: false });
   }
 });
+router.post('/studentInfo',async(req,res)=>{
+  const { day } = req.query;
+  console.log("date ",new Date(day));
+  console.log(req.body.section);
+  console.log(req.body.batch);
+  console.log(req.body.depart);
+  const result = await Student.findOne({date:new Date(day),section:req.body.section,
+    batch:req.body.batch,depart:req.body.depart});
+    console.log(result);
+  const allRegisno= (result.students).map((student)=> {
+    return student.regisno
+  })
+  console.log(result);
+  console.log(allRegisno);
+  res.json({studentInfo:result,allRegisno:allRegisno,status:true})
+})
 
 router.post("/input",async (req,res)=>{
   try{

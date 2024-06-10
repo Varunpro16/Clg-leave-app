@@ -155,6 +155,7 @@ const CouncellorTodayAbsent = ({user}) => {
       }
     }
     const handleEdit = async () => {
+      console.log("selected date: ",selectedDay);
       try{
         const response = await axios.post(`http://localhost:4000/getAbsentees?day=${selectedDay}`,{
           depart:classArr[0],
@@ -242,7 +243,7 @@ const CouncellorClassDetails = ({user}) => {
   },[])
 
   return (
-      <div>CouncellorClassDetails
+      <div>
           <LeaveTable info={data}/>
       </div>
   )
