@@ -21,9 +21,9 @@ jobs:
 
     - name: Increment Frontend Build Number
       run: |
-        NEW_TAG=$(( $(cat .github/frontend_build_number) + 1 ))
-        echo "$NEW_TAG" > .github/frontend_build_number
+        NEW_TAG=$(( ${{ vars.FRONTEND_BUILD_NUMBER }} + 1 ))
         echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_ENV
+
 
     - name: Build and Push Frontend Image
       run: |
