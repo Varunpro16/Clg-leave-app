@@ -1,0 +1,16 @@
+name: Self-Hosted Runner Test
+
+on:
+  push:
+    branches:
+      - main  # Runs when code is pushed to the 'main' branch
+
+jobs:
+  test-runner:
+    runs-on: self-hosted  # Uses the self-hosted runner
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3  # Clones the repo
+      
+      - name: Echo a Message
+        run: echo "Hello from self-hosted runner!"
