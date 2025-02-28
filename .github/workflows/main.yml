@@ -70,5 +70,5 @@ jobs:
           # aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
           docker rmi -f ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ github.run_number }} || true
-          
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker-compose up -d 
