@@ -47,7 +47,7 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "client/docker-compose.yml"
-        target: "~/frontend/client"
+        target: "~/frontend/"
         overwrite: true
       
     - name: Deploy Frontend to Server
@@ -57,7 +57,7 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          cd ${{ secrets.DEPLOY_FOLDER }}/client/client
+          cd ${{ secrets.DEPLOY_FOLDER }}/client
           # Set environment variables for docker-compose
           export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
           export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
