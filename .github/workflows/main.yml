@@ -72,3 +72,5 @@ jobs:
           docker rmi -f ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:$(( ${{ github.run_number }} - 1 )) || true
           docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker-compose up -d 
+          docker image prune -f
+
