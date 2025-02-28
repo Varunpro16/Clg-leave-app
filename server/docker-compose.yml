@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  jbl-web:
+    image: ${ECR_REGISTRY}/${ECR_BACKEND_REPOSITORY}:${IMAGE_TAG}
+    container_name: ${ECR_REPOSITORY}
+    ports:
+      - "4002:4000"
+    restart: unless-stopped
