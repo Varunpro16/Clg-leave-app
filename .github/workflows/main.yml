@@ -47,7 +47,7 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "client/docker-compose.yml"
-        target: "$DEPLOY_FOLDER/frontend"
+        target: "$DEPLOY_FOLDER/client"
         overwrite: true
       
     - name: Deploy Frontend to Server
@@ -68,6 +68,5 @@ jobs:
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
           docker rmi -f $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || true
-          cd $DEPLOY_FOLDER/frontend
-          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          cd $DEPLOY_FOLDER/client
           docker-compose up -d 
