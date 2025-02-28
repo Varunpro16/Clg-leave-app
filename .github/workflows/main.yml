@@ -45,8 +45,8 @@ jobs:
       run: |
         aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
 
-        docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG client/
-        docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
+        docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:${{ vars.FRONTEND_BUILD_NUMBER }} client/
+        docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:${{ vars.FRONTEND_BUILD_NUMBER }}
 
   deploy:
     needs: build-push
