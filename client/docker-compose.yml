@@ -1,6 +1,6 @@
 version: '3.8'
  
-services:
+services: 
   jbl-web:
     image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
     container_name: ${ECR_REPOSITORY}
