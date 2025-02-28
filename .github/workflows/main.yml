@@ -58,23 +58,16 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           # Set environment variables for docker-compose
-          export ECR_REGISTRY=$ECR_REGISTRY
-          export ECR_REPOSITORY=$ECR_REPOSITORY
-          export IMAGE_TAG=$IMAGE_TAG
-          export DEPLOY_FOLDER="frontend"
-          export AWS_REGION=$AWS_REGION
-          touch saii.txt
-          echo "ECR_REGISTRY=$ECR_REGISTRY" >> saii.txt
-          echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> saii.txt
-          echo "IMAGE_TAG=$IMAGE_TAG" >> saii.txt
-          echo "DEPLOY_FOLDER=$DEPLOY_FOLDER" >> saii.txt
-          echo "AWS_REGION=$AWS_REGION" >> saii.txt
-
+          export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+          export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
+          export IMAGE_TAG=${{ github.run_number }}
+          export DEPLOY_FOLDER=${{ secrets.DEPLOY_FOLDER }}
+          export AWS_REGION=${{ secrets.AWS_REGION }}
 
 
           # Login to ECR
           # aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-          # aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
-          # docker rmi -f $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || true
-          # cd $DEPLOY_FOLDER/client
-          # docker-compose up -d 
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+          docker rmi -f ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ github.run_number }} || true
+          cd ${{ secrets.DEPLOY_FOLDER }}/client
+          docker-compose up -d 
