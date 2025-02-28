@@ -6,4 +6,4 @@ services:
     container_name: ${ECR_REPOSITORY}
     ports:
       - "3002:3000"
-    restart: unless-stopped 
+    restart: unless-stopped  
