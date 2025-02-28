@@ -63,10 +63,17 @@ jobs:
           export IMAGE_TAG=$IMAGE_TAG
           export DEPLOY_FOLDER="frontend"
           export AWS_REGION=$AWS_REGION
+          
+          echo "ECR_REGISTRY: $ECR_REGISTRY"
+          echo "ECR_REPOSITORY: $ECR_REPOSITORY"
+          echo "IMAGE_TAG: $IMAGE_TAG"
+          echo "DEPLOY_FOLDER: $DEPLOY_FOLDER"
+          echo "AWS_REGION: $AWS_REGION"
+
 
           # Login to ECR
           # aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker rmi -f $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || true
-          cd $DEPLOY_FOLDER/client
-          docker-compose up -d 
+          # aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
+          # docker rmi -f $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG || true
+          # cd $DEPLOY_FOLDER/client
+          # docker-compose up -d 
