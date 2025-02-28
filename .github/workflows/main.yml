@@ -19,12 +19,11 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Build Frontend Image
+    - name: Build and Push Frontend Image
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG client/
+        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
 
-    - name: Push Frontend Image to ECR
-      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG client/
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   deploy:
