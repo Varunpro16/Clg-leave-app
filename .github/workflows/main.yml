@@ -63,12 +63,13 @@ jobs:
           export IMAGE_TAG=$IMAGE_TAG
           export DEPLOY_FOLDER="frontend"
           export AWS_REGION=$AWS_REGION
-          
-          echo "ECR_REGISTRY: $ECR_REGISTRY"
-          echo "ECR_REPOSITORY: $ECR_REPOSITORY"
-          echo "IMAGE_TAG: $IMAGE_TAG"
-          echo "DEPLOY_FOLDER: $DEPLOY_FOLDER"
-          echo "AWS_REGION: $AWS_REGION"
+          touch saii.txt
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> saii.txt
+          echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> saii.txt
+          echo "IMAGE_TAG=$IMAGE_TAG" >> saii.txt
+          echo "DEPLOY_FOLDER=$DEPLOY_FOLDER" >> saii.txt
+          echo "AWS_REGION=$AWS_REGION" >> saii.txt
+
 
 
           # Login to ECR
