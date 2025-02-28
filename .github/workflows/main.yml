@@ -1,4 +1,4 @@
-name: Frontend Build & Deploy 
+name: Frontend Build & Deploy
 
 on:
   push:
@@ -11,28 +11,34 @@ jobs:
   build-push:
     runs-on: self-hosted
     env:
-      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-      ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-      IMAGE_TAG: ${{ github.run_number }}
+      FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
+      FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
+      IMAGE_TAG: ${{ vars.FRONTEND_BUILD_NUMBER }}
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    - name: Increment Frontend Build Number
+      run: |
+        NEW_TAG=$(( $(cat .github/frontend_build_number) + 1 ))
+        echo "$NEW_TAG" > .github/frontend_build_number
+        echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_ENV
+
     - name: Build and Push Frontend Image
       run: |
-        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
+        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
 
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG client/
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG client/
+        docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
 
   deploy:
     needs: build-push
     runs-on: self-hosted
     env:
-      ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-      ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-      IMAGE_TAG: ${{ github.run_number }}
+      FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
+      FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
+      IMAGE_TAG: ${{ vars.FRONTEND_BUILD_NUMBER }}
       DEPLOY_FOLDER: ${{ secrets.DEPLOY_FOLDER }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
@@ -49,7 +55,7 @@ jobs:
         source: "client/docker-compose.yml"
         target: "~/frontend/"
         overwrite: true
-      
+
     - name: Deploy Frontend to Server
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -58,19 +64,21 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd ${{ secrets.DEPLOY_FOLDER }}/client
-          # Set environment variables for docker-compose
-          export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
-          export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
-          export IMAGE_TAG=${{ github.run_number }}
+
+          # Set environment variables
+          export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
+          export FRONTEND_ECR_REPOSITORY=${{ secrets.FRONTEND_ECR_REPOSITORY }}
+          export IMAGE_TAG=${{ vars.FRONTEND_BUILD_NUMBER }}
           export DEPLOY_FOLDER=${{ secrets.DEPLOY_FOLDER }}
           export AWS_REGION=${{ secrets.AWS_REGION }}
 
-
           # Login to ECR
-          # aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker rmi -f $ECR_REGISTRY/$ECR_REPOSITORY:$(( ${{ github.run_number }} - 1 )) || true
-          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
+
+          # Remove old image and pull the new one
+          docker rmi -f $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( ${{ vars.FRONTEND_BUILD_NUMBER }} - 1 )) || true
+          docker pull $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
+
+          # Deploy with docker-compose
           docker-compose up -d 
           docker image prune -f
-
