@@ -67,7 +67,7 @@ jobs:
       FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
       FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
       IMAGE_TAG: ${{ needs.build-push.outputs.IMAGE_TAG }}  # 👈 Use the output from previous job
-      DEPLOY_FOLDER: ${{ secrets.DEPLOY_FOLDER }}
+      DEPLOY_FOLDER: ${{ secrets.FRONTEND_DEPLOY_FOLDER }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
@@ -97,7 +97,7 @@ jobs:
           export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
           export FRONTEND_ECR_REPOSITORY=${{ secrets.FRONTEND_ECR_REPOSITORY }}
           export IMAGE_TAG=${{ needs.build-push.outputs.IMAGE_TAG }}  # 👈 Use output here
-          export DEPLOY_FOLDER=${{ secrets.DEPLOY_FOLDER }}
+          export DEPLOY_FOLDER=${{ secrets.FRONTEND_DEPLOY_FOLDER }}
           export AWS_REGION=${{ secrets.AWS_REGION }}
           echo "Using image: $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG"
 
