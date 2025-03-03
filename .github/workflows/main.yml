@@ -81,7 +81,7 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          cd ${{ secrets.BACKEND_DEPLOY_FOLDER }}/client
+          cd ${{ secrets.FRONTEND_DEPLOY_FOLDER }}/client
           
           # Set environment variables for docker-compose
           export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
