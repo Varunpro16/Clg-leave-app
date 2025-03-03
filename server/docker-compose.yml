@@ -1,5 +1,5 @@
 version: '3.8'
-
+ 
 services:
   server-clg:
     image: ${BACKEND_ECR_REGISTRY}/${BACKEND_ECR_REPOSITORY}:${IMAGE_TAG}
