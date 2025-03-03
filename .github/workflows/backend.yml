@@ -53,8 +53,8 @@ jobs:
     needs: build-push
     runs-on: self-hosted
     env:
-      FRONTEND_ECR_REGISTRY: ${{ secrets.BACKEND_ECR_REGISTRY }}
-      FRONTEND_ECR_REPOSITORY: ${{ secrets.BACKEND_ECR_REPOSITORY }}
+      BACKEND_ECR_REGISTRY: ${{ secrets.BACKEND_ECR_REGISTRY }}
+      BACKEND_ECR_REPOSITORY: ${{ secrets.BACKEND_ECR_REPOSITORY }}
       IMAGE_TAG: ${{ vars.BACKEND_BUILD_NUMBER }}
       DEPLOY_FOLDER: ${{ secrets.BACKEND_DEPLOY_FOLDER }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -88,14 +88,13 @@ jobs:
           export IMAGE_TAG=${{ vars.BACKEND_BUILD_NUMBER }}  # 👈 Use output here
           export DEPLOY_FOLDER=${{ secrets.BACKEND_DEPLOY_FOLDER }}
           export AWS_REGION=${{ secrets.AWS_REGION }}
-          echo "Using image: $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG"
 
 
           # Login to ECR
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $BACKEND_ECR_REGISTRY
           
           # Remove previous image (if exists), pull new one, and restart container
-          docker rmi -f $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$(( $IMAGE_TAG - 1 )) || true
+          docker images --format "{{.Repository}}:{{.Tag}}" | grep "${{ secrets.BACKEND_ECR_REGISTRY }}/${{ secrets.BACKEND_ECR_REPOSITORY }}" | xargs -r docker rmi -f
           docker pull $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG
           docker-compose up -d 
           docker image prune -f
