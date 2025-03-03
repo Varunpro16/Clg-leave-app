@@ -52,7 +52,7 @@ jobs:
 
         # Update repository variable
         curl -X PATCH $GH_API_URL \
-          -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+          -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
           -H "Accept: application/vnd.github+json" \
           -H "Content-Type: application/json" \
           -d "{\"value\": \"$NEW_VALUE\" }"
