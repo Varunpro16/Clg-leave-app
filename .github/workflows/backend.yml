@@ -21,13 +21,11 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Build and Push Backend Image
-      run: |
-        echo "🚀 Building and pushing image with tag: $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG"
-        
+      run: |        
         aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $BACKEND_ECR_REGISTRY
 
-        docker build -t $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG server/
-        docker push $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG
+        docker build -t $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 )) server/
+        docker push $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 ))
 
     - name: Increment BACKEND_BUILD_NUMBER
       run: |
@@ -87,7 +85,7 @@ jobs:
           # Set environment variables for docker-compose
           export BACKEND_ECR_REGISTRY=${{ secrets.BACKEND_ECR_REGISTRY }}
           export BACKEND_ECR_REPOSITORY=${{ secrets.BACKEND_ECR_REPOSITORY }}
-          export IMAGE_TAG=${{ needs.build-push.outputs.IMAGE_TAG }}  # 👈 Use output here
+          export IMAGE_TAG=${{ vars.BACKEND_BUILD_NUMBER }}  # 👈 Use output here
           export DEPLOY_FOLDER=${{ secrets.BACKEND_DEPLOY_FOLDER }}
           export AWS_REGION=${{ secrets.AWS_REGION }}
           echo "Using image: $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG"
