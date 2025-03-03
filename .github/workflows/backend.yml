@@ -1,1 +1,112 @@
+name: Backend Build & Deploy
 
+on:
+  push:
+    branches: [main] 
+    paths:
+      - "server/**"
+  workflow_dispatch:
+
+jobs:
+  build-push:
+    runs-on: self-hosted
+    env:
+      BACKEND_ECR_REGISTRY: ${{ secrets.BACKEND_ECR_REGISTRY }}
+      BACKEND_ECR_REPOSITORY: ${{ secrets.BACKEND_ECR_REPOSITORY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    outputs:
+      IMAGE_TAG: ${{ steps.increment.outputs.IMAGE_TAG }}
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Increment backend Build Number
+      id: increment  # 👈 Add an ID to reference outputs
+      run: |
+        NEW_TAG=$(( ${{ vars.BACKEND_BUILD_NUMBER }} + 1 ))
+        echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_ENV
+        echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_OUTPUT  # 👈 Set output for next job
+
+    - name: Build and Push Backend Image
+      run: |
+        echo "🚀 Building and pushing image with tag: $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG"
+        
+        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $BACKEND_ECR_REGISTRY
+
+        docker build -t $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG server/
+        docker push $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Increment FRONTEND_BUILD_NUMBER
+      run: |
+        GH_API_URL="https://api.github.com/repos/Varunpro16/Clg-leave-app/actions/variables/BACKEND_BUILD_NUMBER"
+
+        # Fetch current value
+        CURRENT_VALUE=$(curl -s -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
+                            -H "Accept: application/vnd.github+json" \
+                            $GH_API_URL | jq -r '.value')
+
+        # Increment the value
+        NEW_VALUE=$((CURRENT_VALUE + 1))
+
+        # Update repository variable
+        curl -X PATCH $GH_API_URL \
+          -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "Content-Type: application/json" \
+          -d "{\"value\": \"$NEW_VALUE\" }"
+
+        echo "Updated BACKEND_BUILD_NUMBER to $NEW_VALUE"
+
+
+  deploy:
+    needs: build-push
+    runs-on: self-hosted
+    env:
+      FRONTEND_ECR_REGISTRY: ${{ secrets.BACKEND_ECR_REGISTRY }}
+      FRONTEND_ECR_REPOSITORY: ${{ secrets.BACKEND_ECR_REPOSITORY }}
+      IMAGE_TAG: ${{ needs.build-push.outputs.IMAGE_TAG }}  # 👈 Use the output from previous job
+      DEPLOY_FOLDER: ${{ secrets.FRONTEND_DEPLOY_FOLDER }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Copy docker-compose to EC2
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "server/docker-compose.yml"
+        target: "~/backend/"
+        overwrite: true
+
+    - name: Deploy Frontend to Server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd ${{ secrets.BACKEND_DEPLOY_FOLDER }}/server
+          
+          # Set environment variables for docker-compose
+          export BACKEND_ECR_REGISTRY=${{ secrets.BACKEND_ECR_REGISTRY }}
+          export BACKEND_ECR_REPOSITORY=${{ secrets.BACKEND_ECR_REPOSITORY }}
+          export IMAGE_TAG=${{ needs.build-push.outputs.IMAGE_TAG }}  # 👈 Use output here
+          export DEPLOY_FOLDER=${{ secrets.BACKEND_DEPLOY_FOLDER }}
+          export AWS_REGION=${{ secrets.AWS_REGION }}
+          echo "Using image: $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG"
+
+
+          # Login to ECR
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $BACKEND_ECR_REGISTRY
+          
+          # Remove previous image (if exists), pull new one, and restart container
+          docker rmi -f $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$(( $IMAGE_TAG - 1 )) || true
+          docker pull $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG
+          docker-compose up -d 
+          docker image prune -f
