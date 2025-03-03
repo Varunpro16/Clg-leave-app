@@ -38,12 +38,27 @@ jobs:
         docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG client/
         docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
 
-    - name: Update GitHub Repository Variable
+    - name: Increment FRONTEND_BUILD_NUMBER
       run: |
-        curl -X PATCH "https://api.github.com/repos/${{ github.repository }}/actions/variables/FRONTEND_BUILD_NUMBER" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          -d '{"value":"'$IMAGE_TAG'"}'
+        GH_API_URL="https://api.github.com/repos/Varunpro16/Clg-leave-app/actions/variables/FRONTEND_BUILD_NUMBER"
+
+        # Fetch current value
+        CURRENT_VALUE=$(curl -s -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
+                            -H "Accept: application/vnd.github+json" \
+                            $GH_API_URL | jq -r '.value')
+
+        # Increment the value
+        NEW_VALUE=$((CURRENT_VALUE + 1))
+
+        # Update repository variable
+        curl -X PATCH $GH_API_URL \
+          -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "Content-Type: application/json" \
+          -d "{\"value\": \"$NEW_VALUE\" }"
+
+        echo "Updated FRONTEND_BUILD_NUMBER to $NEW_VALUE"
+
 
   deploy:
     needs: build-push
