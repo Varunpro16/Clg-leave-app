@@ -15,19 +15,9 @@ jobs:
       BACKEND_ECR_REPOSITORY: ${{ secrets.BACKEND_ECR_REPOSITORY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
-    outputs:
-      IMAGE_TAG: ${{ steps.increment.outputs.IMAGE_TAG }}
-
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
-
-    - name: Increment backend Build Number
-      id: increment  # 👈 Add an ID to reference outputs
-      run: |
-        NEW_TAG=$(( ${{ vars.BACKEND_BUILD_NUMBER }} + 1 ))
-        echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_ENV
-        echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_OUTPUT  # 👈 Set output for next job
 
     - name: Build and Push Backend Image
       run: |
@@ -66,8 +56,8 @@ jobs:
     env:
       FRONTEND_ECR_REGISTRY: ${{ secrets.BACKEND_ECR_REGISTRY }}
       FRONTEND_ECR_REPOSITORY: ${{ secrets.BACKEND_ECR_REPOSITORY }}
-      IMAGE_TAG: ${{ needs.build-push.outputs.IMAGE_TAG }}  # 👈 Use the output from previous job
-      DEPLOY_FOLDER: ${{ secrets.FRONTEND_DEPLOY_FOLDER }}
+      IMAGE_TAG: ${{ vars.BACKEND_BUILD_NUMBER }}
+      DEPLOY_FOLDER: ${{ secrets.BACKEND_DEPLOY_FOLDER }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
