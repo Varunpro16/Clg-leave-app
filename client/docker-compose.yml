@@ -1,9 +1,10 @@
+
 version: '3.8'
- 
-services: 
-  client:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-    container_name: frontend
+
+services:
+  jbl-web:
+    image: ${FRONTEND_ECR_REGISTRY}/${FRONTEND_ECR_REPOSITORY}:${IMAGE_TAG}
+    container_name: ${FRONTEND_ECR_REPOSITORY}
     ports:
       - "3002:3000"
-    restart: unless-stopped  
+    restart: unless-stopped
