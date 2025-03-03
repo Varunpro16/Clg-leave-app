@@ -73,7 +73,7 @@ jobs:
         target: "~/backend/"
         overwrite: true
 
-    - name: Deploy Frontend to Server
+    - name: Deploy Backend to Server
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.EC2_HOST }}
