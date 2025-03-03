@@ -4,7 +4,7 @@ version: '3.8'
 services:
   jbl-web:
     image: ${FRONTEND_ECR_REGISTRY}/${FRONTEND_ECR_REPOSITORY}:${IMAGE_TAG}
-    container_name: clg-leave-frontend
+    container_name: clg-leave-fronttend
     ports:
       - "3002:3000"
     restart: unless-stopped
