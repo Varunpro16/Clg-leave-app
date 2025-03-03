@@ -1,12 +1,12 @@
 name: Frontend Build & Deploy
- 
+
 on:
   push:
     branches: [main] 
     paths:
       - "client/**"
   workflow_dispatch:
- 
+
 jobs:
   build-push:
     runs-on: self-hosted
@@ -15,15 +15,20 @@ jobs:
       FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
+    outputs:
+      IMAGE_TAG: ${{ steps.increment.outputs.IMAGE_TAG }}
+
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
     - name: Increment Frontend Build Number
+      id: increment  # 👈 Add an ID to reference outputs
       run: |
         NEW_TAG=$(( ${{ vars.FRONTEND_BUILD_NUMBER }} + 1 ))
         echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_ENV
-    
+        echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_OUTPUT  # 👈 Set output for next job
+
     - name: Build and Push Frontend Image
       run: |
         echo "🚀 Building and pushing image with tag: $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG"
@@ -46,14 +51,14 @@ jobs:
     env:
       FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
       FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
-      IMAGE_TAG: ${{ env.IMAGE_TAG }}
+      IMAGE_TAG: ${{ needs.build-push.outputs.IMAGE_TAG }}  # 👈 Use the output from previous job
       DEPLOY_FOLDER: ${{ secrets.DEPLOY_FOLDER }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
- 
+
     steps:
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v4
- 
+
     - name: Copy docker-compose to EC2
       uses: appleboy/scp-action@v0.1.7
       with:
@@ -72,14 +77,20 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd ${{ secrets.DEPLOY_FOLDER }}/client
-
+          
+          # Set environment variables for docker-compose
           export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
           export FRONTEND_ECR_REPOSITORY=${{ secrets.FRONTEND_ECR_REPOSITORY }}
-          export IMAGE_TAG=${{ env.IMAGE_TAG }}
+          export IMAGE_TAG=${{ needs.build-push.outputs.IMAGE_TAG }}  # 👈 Use output here
+          export DEPLOY_FOLDER=${{ secrets.DEPLOY_FOLDER }}
           export AWS_REGION=${{ secrets.AWS_REGION }}
 
+          # Login to ECR
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
-          docker rmi -f $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( IMAGE_TAG - 1 )) || true
+          
+          # Remove previous image (if exists), pull new one, and restart container
+          docker rmi -f $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( $IMAGE_TAG - 1 )) || true
           docker pull $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
           docker-compose up -d 
           docker image prune -f
+
