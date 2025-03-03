@@ -85,7 +85,9 @@ jobs:
           # Set environment variables for docker-compose
           export BACKEND_ECR_REGISTRY=${{ secrets.BACKEND_ECR_REGISTRY }}
           export BACKEND_ECR_REPOSITORY=${{ secrets.BACKEND_ECR_REPOSITORY }}
-          export IMAGE_TAG=${{ vars.BACKEND_BUILD_NUMBER }}  # 👈 Use output here
+          BACKEND_BUILD_NUMBER=${{ vars.BACKEND_BUILD_NUMBER }}
+          IMAGE_TAG=$(( BACKEND_BUILD_NUMBER + 1 ))
+          export IMAGE_TAG
           export DEPLOY_FOLDER=${{ secrets.BACKEND_DEPLOY_FOLDER }}
           export AWS_REGION=${{ secrets.AWS_REGION }}
 
