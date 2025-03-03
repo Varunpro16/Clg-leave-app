@@ -1,54 +1,44 @@
 name: Frontend Build & Deploy
-
+ 
 on:
   push:
     branches: [main] 
     paths:
       - "client/**"
   workflow_dispatch:
-
+ 
 jobs:
   build-push:
     runs-on: self-hosted
     env:
       FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
       FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
-      IMAGE_TAG: ${{ vars.FRONTEND_BUILD_NUMBER }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Increment FRONTEND_BUILD_NUMBER
+    - name: Increment Frontend Build Number
       run: |
-        # Fetch the current value from GitHub Variables API
-        CURRENT_TAG=$(curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/${{ github.repository }}/actions/variables/FRONTEND_BUILD_NUMBER | jq -r .value)
-        
-        # Ensure CURRENT_TAG is a number (default to 1 if empty)
-        if [[ -z "$CURRENT_TAG" || "$CURRENT_TAG" == "null" ]]; then
-          CURRENT_TAG=0
-        fi
+        NEW_TAG=$(( ${{ vars.FRONTEND_BUILD_NUMBER }} + 1 ))
+        echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_ENV
     
-        # Increment the build number
-        NEW_TAG=$((CURRENT_TAG + 1))
-    
-        # Update repo variable using GitHub API
-        curl -X PATCH -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/${{ github.repository }}/actions/variables/FRONTEND_BUILD_NUMBER \
-          -d "{\"value\":\"$NEW_TAG\"}"
-    
-
     - name: Build and Push Frontend Image
       run: |
-        echo "🚀 Building and pushing image with tag: $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:${{ vars.FRONTEND_BUILD_NUMBER }}"
+        echo "🚀 Building and pushing image with tag: $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG"
+        
+        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
 
-        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
+        docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG client/
+        docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
 
-        docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:${{ vars.FRONTEND_BUILD_NUMBER }} client/
-        docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:${{ vars.FRONTEND_BUILD_NUMBER }}
+    - name: Update GitHub Repository Variable
+      run: |
+        curl -X PATCH "https://api.github.com/repos/${{ github.repository }}/actions/variables/FRONTEND_BUILD_NUMBER" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d '{"value":"'$IMAGE_TAG'"}'
 
   deploy:
     needs: build-push
@@ -56,14 +46,14 @@ jobs:
     env:
       FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
       FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
-      IMAGE_TAG: ${{ vars.FRONTEND_BUILD_NUMBER }}
+      IMAGE_TAG: ${{ env.IMAGE_TAG }}
       DEPLOY_FOLDER: ${{ secrets.DEPLOY_FOLDER }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
-
+ 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
+ 
     - name: Copy docker-compose to EC2
       uses: appleboy/scp-action@v0.1.7
       with:
@@ -83,20 +73,13 @@ jobs:
         script: |
           cd ${{ secrets.DEPLOY_FOLDER }}/client
 
-          # Set environment variables
           export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
           export FRONTEND_ECR_REPOSITORY=${{ secrets.FRONTEND_ECR_REPOSITORY }}
-          export IMAGE_TAG=${{ vars.FRONTEND_BUILD_NUMBER }}
-          export DEPLOY_FOLDER=${{ secrets.DEPLOY_FOLDER }}
+          export IMAGE_TAG=${{ env.IMAGE_TAG }}
           export AWS_REGION=${{ secrets.AWS_REGION }}
 
-          # Login to ECR
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
-
-          # Remove old image and pull the new one
-          docker rmi -f $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( ${{ vars.FRONTEND_BUILD_NUMBER }} - 1 )) || true
+          docker rmi -f $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( IMAGE_TAG - 1 )) || true
           docker pull $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
-
-          # Deploy with docker-compose
           docker-compose up -d 
           docker image prune -f
