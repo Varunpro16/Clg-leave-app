@@ -102,6 +102,12 @@ jobs:
           IMAGE_TAG=$(( FRONTEND_BUILD_NUMBER + 1 ))
           export IMAGE_TAG
           export AWS_REGION=$AWS_REGION
+          # Store credentials for debugging
+          echo "🔍 FRONTEND_ECR_REGISTRY: $FRONTEND_ECR_REGISTRY" >> deployment_debug.log
+          echo "🔍 FRONTEND_ECR_REPOSITORY: $FRONTEND_ECR_REPOSITORY" >> deployment_debug.log
+          echo "🔍 FRONTEND_BUILD_NUMBER: $FRONTEND_BUILD_NUMBER" >> deployment_debug.log
+          echo "🔍 IMAGE_TAG: $IMAGE_TAG" >> deployment_debug.log
+          echo "🔍 AWS_REGION: $AWS_REGION" >> deployment_debug.log
 
           # Login to ECR
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
