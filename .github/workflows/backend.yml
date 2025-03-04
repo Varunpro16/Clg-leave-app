@@ -26,6 +26,7 @@ jobs:
 
         docker build -t $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 )) server/
         docker push $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 ))
+        docker image prune -af
 
     - name: Increment BACKEND_BUILD_NUMBER
       run: |
