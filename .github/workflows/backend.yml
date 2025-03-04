@@ -107,7 +107,6 @@ jobs:
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $BACKEND_ECR_REGISTRY
           
           # Remove previous image (if exists), pull new one, and restart container
-          docker images --format "{{.Repository}}:{{.Tag}}" | grep "${{ secrets.BACKEND_ECR_REGISTRY }}/${{ secrets.BACKEND_ECR_REPOSITORY }}" | xargs -r docker rmi -f
           docker pull $BACKEND_ECR_REGISTRY/$BACKEND_ECR_REPOSITORY:$IMAGE_TAG
           docker-compose up -d 
           docker image prune -f
