@@ -65,13 +65,7 @@ jobs:
   deploy:
     needs: build-push
     runs-on: self-hosted
-    env:
-      FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
-      FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
-      IMAGE_TAG: ${{ vars.FRONTEND_BUILD_NUMBER }}
-      DEPLOY_FOLDER: ${{ secrets.FRONTEND_DEPLOY_FOLDER }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-
+    
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -93,7 +87,7 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          cd $FRONTEND_DEPLOY_FOLDER/client
+          cd ${{ secrets.FRONTEND_DEPLOY_FOLDER }}/client
           
           # Set environment variables for docker-compose
           export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
