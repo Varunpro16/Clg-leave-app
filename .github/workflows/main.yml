@@ -105,10 +105,6 @@ jobs:
 
           # Login to ECR
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
-          
-          # Remove previous image (if exists), pull new one, and restart container
-          docker images --format "{{.Repository}}:{{.Tag}}" | grep "$FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY" | xargs -r docker rmi -f
-
           docker pull $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
           docker-compose up -d 
           docker image prune -f
