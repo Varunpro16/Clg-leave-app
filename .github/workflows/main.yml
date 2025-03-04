@@ -38,6 +38,7 @@ jobs:
 
         docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 )) client/
         docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 ))
+        docker image prune -af
 
     - name: Increment FRONTEND_BUILD_NUMBER
       run: |
