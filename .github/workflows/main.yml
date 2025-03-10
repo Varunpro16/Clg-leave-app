@@ -40,8 +40,9 @@ jobs:
     - name: Extract Instance ID
       id: extract-instance-id
       run: |
-          INSTANCE_ID=$(jq -r '.InstanceId' response.json)
+          INSTANCE_ID=$(jq -r '.body' response.json | jq -r '.instance_id')
           echo "Instance ID from Lambda: $INSTANCE_ID"
+
 
           # Set as output to be used in other jobs
           echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
