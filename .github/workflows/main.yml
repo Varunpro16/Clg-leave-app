@@ -1,19 +1,46 @@
 name: Frontend Build & Deploy
 
 on:
-  push:
-    branches: [main] 
-    paths:
-      - "client/**"
   workflow_dispatch:
+
 permissions:
-  id-token: write   # Required for OIDC JWT token authentication
+  id-token: write   # OIDC auth for AWS
   contents: read    # Required for actions/checkout
-  
 
 jobs:
-  build-push:
-    runs-on: self-hosted
+  # --------- 1. Trigger Lambda to Create EC2 Runner ----------
+  create-runner:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::882027629355:role/github-actions-oidc-Role
+        aws-region: ${{ secrets.AWS_REGION }}
+        audience: sts.amazonaws.com
+
+    - name: Trigger Lambda to create EC2 runner
+      run: |
+        aws lambda invoke \
+          --function-name cicd-spot-instance \
+          --payload '{}' \
+          response.json
+
+        cat response.json
+
+    - name: Wait for Runner to Register (simple wait)
+      run: |
+        echo "Waiting 90 seconds for the runner to come online..."
+        sleep 90
+
+  # --------- 2. Build and Deploy Frontend on EC2 Runner ----------
+  build-and-deploy:
+    needs: create-runner
+    runs-on: ondemand-runner
+
     env:
       FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
       FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
@@ -23,8 +50,8 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
-      
-    - name: Configure AWS credentials using OIDC
+
+    - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::882027629355:role/github-actions-oidc-Role
@@ -33,7 +60,6 @@ jobs:
 
     - name: Build and Push Frontend Image
       run: |
-        
         aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
 
         docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 )) client/
@@ -44,15 +70,12 @@ jobs:
       run: |
         GH_API_URL="https://api.github.com/repos/Varunpro16/Clg-leave-app/actions/variables/FRONTEND_BUILD_NUMBER"
 
-        # Fetch current value
         CURRENT_VALUE=$(curl -s -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
                             -H "Accept: application/vnd.github+json" \
                             $GH_API_URL | jq -r '.value')
 
-        # Increment the value
         NEW_VALUE=$((CURRENT_VALUE + 1))
 
-        # Update repository variable
         curl -X PATCH $GH_API_URL \
           -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
           -H "Accept: application/vnd.github+json" \
@@ -60,15 +83,6 @@ jobs:
           -d "{\"value\": \"$NEW_VALUE\" }"
 
         echo "Updated FRONTEND_BUILD_NUMBER to $NEW_VALUE"
-
-
-  deploy:
-    needs: build-push
-    runs-on: self-hosted
-    
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
 
     - name: Copy docker-compose to EC2
       uses: appleboy/scp-action@v0.1.7
@@ -89,16 +103,132 @@ jobs:
         script: |
           cd ${{ secrets.FRONTEND_DEPLOY_FOLDER }}/client
           
-          # Set environment variables for docker-compose
           export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
           export FRONTEND_ECR_REPOSITORY=${{ secrets.FRONTEND_ECR_REPOSITORY }}
           FRONTEND_BUILD_NUMBER=${{ vars.FRONTEND_BUILD_NUMBER }}
           IMAGE_TAG=$(( FRONTEND_BUILD_NUMBER + 1 ))
           export IMAGE_TAG
-          export AWS_REGION= ${{ secrets.AWS_REGION }}
+          export AWS_REGION=${{ secrets.AWS_REGION }}
 
-          # Login to ECR
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
           docker pull $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
           docker-compose up -d 
           docker image prune -f
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# name: Frontend Build & Deploy
+
+# on:
+#   push:
+#     branches: [main] 
+#     paths:
+#       - "client/**"
+#   workflow_dispatch:
+# permissions:
+#   id-token: write   # Required for OIDC JWT token authentication
+#   contents: read    # Required for actions/checkout
+  
+
+# jobs:
+#   build-push:
+#     runs-on: self-hosted
+#     env:
+#       FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
+#       FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
+#       AWS_REGION: ${{ secrets.AWS_REGION }}
+#       IMAGE_TAG: ${{ vars.FRONTEND_BUILD_NUMBER }}
+
+#     steps:
+#     - name: Checkout Code
+#       uses: actions/checkout@v4
+      
+#     - name: Configure AWS credentials using OIDC
+#       uses: aws-actions/configure-aws-credentials@v4
+#       with:
+#         role-to-assume: arn:aws:iam::882027629355:role/github-actions-oidc-Role
+#         aws-region: ${{ secrets.AWS_REGION }}
+#         audience: sts.amazonaws.com
+
+#     - name: Build and Push Frontend Image
+#       run: |
+        
+#         aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
+
+#         docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 )) client/
+#         docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 ))
+#         docker image prune -af
+
+#     - name: Increment FRONTEND_BUILD_NUMBER
+#       run: |
+#         GH_API_URL="https://api.github.com/repos/Varunpro16/Clg-leave-app/actions/variables/FRONTEND_BUILD_NUMBER"
+
+#         # Fetch current value
+#         CURRENT_VALUE=$(curl -s -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
+#                             -H "Accept: application/vnd.github+json" \
+#                             $GH_API_URL | jq -r '.value')
+
+#         # Increment the value
+#         NEW_VALUE=$((CURRENT_VALUE + 1))
+
+#         # Update repository variable
+#         curl -X PATCH $GH_API_URL \
+#           -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
+#           -H "Accept: application/vnd.github+json" \
+#           -H "Content-Type: application/json" \
+#           -d "{\"value\": \"$NEW_VALUE\" }"
+
+#         echo "Updated FRONTEND_BUILD_NUMBER to $NEW_VALUE"
+
+
+#   deploy:
+#     needs: build-push
+#     runs-on: self-hosted
+    
+#     steps:
+#     - name: Checkout Code
+#       uses: actions/checkout@v4
+
+#     - name: Copy docker-compose to EC2
+#       uses: appleboy/scp-action@v0.1.7
+#       with:
+#         host: ${{ secrets.EC2_HOST }}
+#         username: ${{ secrets.EC2_USER }}
+#         key: ${{ secrets.EC2_SSH_KEY }}
+#         source: "client/docker-compose.yml"
+#         target: "~/frontend/"
+#         overwrite: true
+
+#     - name: Deploy Frontend to Server
+#       uses: appleboy/ssh-action@v1.0.3
+#       with:
+#         host: ${{ secrets.EC2_HOST }}
+#         username: ${{ secrets.EC2_USER }}
+#         key: ${{ secrets.EC2_SSH_KEY }}
+#         script: |
+#           cd ${{ secrets.FRONTEND_DEPLOY_FOLDER }}/client
+          
+#           # Set environment variables for docker-compose
+#           export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
+#           export FRONTEND_ECR_REPOSITORY=${{ secrets.FRONTEND_ECR_REPOSITORY }}
+#           FRONTEND_BUILD_NUMBER=${{ vars.FRONTEND_BUILD_NUMBER }}
+#           IMAGE_TAG=$(( FRONTEND_BUILD_NUMBER + 1 ))
+#           export IMAGE_TAG
+#           export AWS_REGION= ${{ secrets.AWS_REGION }}
+
+#           # Login to ECR
+#           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
+#           docker pull $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
+#           docker-compose up -d 
+#           docker image prune -f
