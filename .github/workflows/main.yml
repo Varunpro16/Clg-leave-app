@@ -33,7 +33,9 @@ jobs:
         aws lambda invoke \
           --function-name cicd-spot-instance \
           --payload '{"OWNER": "Varunpro16", "REPO": "Clg-leave-app", "RUNNER_LABEL": "ondemand-runner"}' \
+          --cli-binary-format raw-in-base64-out \
           response.json
+
 
         cat response.json
         
