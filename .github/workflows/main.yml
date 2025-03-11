@@ -32,7 +32,7 @@ jobs:
       run: |
         aws lambda invoke \
           --function-name cicd-spot-instance \
-          -payload '{"OWNER": "Varunpro16", "REPO": "Clg-leave-app", "RUNNER_LABEL": "ondemand-runner"}' \
+          --payload '{"OWNER": "Varunpro16", "REPO": "Clg-leave-app", "RUNNER_LABEL": "ondemand-runner"}' \
           response.json
 
         cat response.json
