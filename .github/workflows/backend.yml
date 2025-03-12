@@ -29,6 +29,28 @@ jobs:
         role-to-assume: arn:aws:iam::882027629355:role/github-actions-oidc-Role
         aws-region: ${{ secrets.AWS_REGION }}
         audience: sts.amazonaws.com
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install SonarScanner
+      run: |
+        wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+        unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+        mv sonar-scanner-5.0.1.3006-linux sonar-scanner
+        echo "$(pwd)/sonar-scanner/bin" >> $GITHUB_PATH
+
+    - name: SonarQube Scan
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        sonar-scanner \
+          -Dsonar.projectKey=supportaltest \
+          -Dsonar.sources=client/src \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.login=$SONAR_TOKEN
 
     - name: Build and Push Backend Image
       run: |        
