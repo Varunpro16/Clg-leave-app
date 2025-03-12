@@ -1,0 +1,66 @@
+name: EC2 Self-Hosted Runner Spot
+
+on:
+  push:
+    branches: [main] 
+    paths:
+      - "data/**"
+  workflow_dispatch:
+jobs:
+  start-runner:
+    timeout-minutes: 5
+    name: Start self-hosted EC2 runner
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: "us-east-1" # Example: us-east-1
+          role-to-assume: arn:aws:iam::882027629355:role/github-actions-oidc-Role
+          audience: sts.amazonaws.com
+          output-credentials: true
+
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: NextChapterSoftware/ec2-action-builder@v1.10
+        with:
+          github_token: ${{ secrets.GT_FINE_GRAINED_TOKEN}}
+          aws_access_key_id: ${{ steps.creds.outputs.aws-access-key-id }}
+          aws_secret_access_key: ${{ steps.creds.outputs.aws-secret-access-key }}
+          aws_session_token: ${{ steps.creds.outputs.aws-session-token }}
+          aws_region: "us-east-1"
+          ec2_subnet_id: "subnet-0e0bc0e4a424fa3fe"
+          ec2_security_group_id: "sg-03567930adad748df"
+          ec2_instance_type: t3.medium
+          ec2_ami_id: "ami-04b4f1a9cf54c11d0"
+          ec2_instance_ttl: 10
+          ec2_spot_instance_strategy: SpotOnly
+          ec2_instance_tags: >
+            [
+              {"Key": "Owner", "Value": "deploybot"}
+            ]
+
+  run-job-on-runner:
+    timeout-minutes: 10
+    needs: start-runner
+    runs-on: ${{ github.run_id }} # Runs on the EC2 runner provisioned earlier
+
+    steps:
+      - name: Show hostname (Confirm it's the EC2 runner)
+        run: hostname
+
+      - name: Create dummy file
+        run: |
+          echo "This is a dummy file created by GitHub Actions on an EC2 instance!" > dummy_file.txt
+          echo "Timestamp: $(date)" >> dummy_file.txt
+          echo "Created by workflow run ID: ${{ github.run_id }}" >> dummy_file.txt
+
+      - name: Verify file content
+        run: cat dummy_file.txt
+
