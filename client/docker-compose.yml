@@ -2,7 +2,7 @@
 version: '3.8'   
  
 services:
-  jbl-web: 
+  jbl-web:  
     image: ${FRONTEND_ECR_REGISTRY}/${FRONTEND_ECR_REPOSITORY}:${IMAGE_TAG} 
     container_name: clg-leave-fronttend
     ports:
