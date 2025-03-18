@@ -1,4 +1,4 @@
-name: Frontend Build & Deploy on EC2 Spot Runner
+name: Frontend Build & Deploy on Spot Runner
 
 on:
   push:
@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # Required for OIDC JWT token authentication
-  contents: read    # Required for actions/checkout
+  id-token: write
+  contents: read
 
 jobs:
-  start-spot-runner:
+  start-runner:
     timeout-minutes: 5
-    name: Start self-hosted EC2 spot runner
+    name: Start EC2 Spot Instance Runner
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -31,7 +31,7 @@ jobs:
           audience: sts.amazonaws.com
           output-credentials: true
 
-      - name: Start EC2 runner
+      - name: Start EC2 Spot Runner
         id: start-ec2-runner
         uses: NextChapterSoftware/ec2-action-builder@v1.10
         with:
@@ -44,7 +44,7 @@ jobs:
           ec2_security_group_id: "sg-03567930adad748df"
           ec2_instance_type: t3.medium
           ec2_ami_id: "ami-04b4f1a9cf54c11d0"
-          ec2_instance_ttl: 10
+          ec2_instance_ttl: 15
           ec2_spot_instance_strategy: SpotOnly
           ec2_instance_tags: >
             [
@@ -52,16 +52,35 @@ jobs:
             ]
 
   build-push:
-    name: Build and Push Frontend Image
-    needs: start-spot-runner
-    runs-on: ${{ github.run_id }} # Runs on the EC2 spot runner
-    env:
-      FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
-      FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      IMAGE_TAG: ${{ vars.FRONTEND_BUILD_NUMBER }}
+    needs: start-runner
+    runs-on: ${{ github.run_id }}
 
     steps:
+      - name: Install AWS CLI and Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip curl
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          aws --version
+
+          sudo apt-get install -y \
+            ca-certificates \
+            curl \
+            gnupg \
+            lsb-release
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          sudo usermod -aG docker $USER
+          newgrp docker
+          docker --version
+
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -75,7 +94,6 @@ jobs:
       - name: Build and Push Frontend Image
         run: |
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
-
           docker build -t $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 )) client/
           docker push $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$(( $IMAGE_TAG + 1 ))
           docker image prune -af
@@ -83,30 +101,25 @@ jobs:
       - name: Increment FRONTEND_BUILD_NUMBER
         run: |
           GH_API_URL="https://api.github.com/repos/Varunpro16/Clg-leave-app/actions/variables/FRONTEND_BUILD_NUMBER"
-
-          # Fetch current value
-          CURRENT_VALUE=$(curl -s -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
-                              -H "Accept: application/vnd.github+json" \
-                              $GH_API_URL | jq -r '.value')
-
-          # Increment the value
+          CURRENT_VALUE=$(curl -s -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" -H "Accept: application/vnd.github+json" $GH_API_URL | jq -r '.value')
           NEW_VALUE=$((CURRENT_VALUE + 1))
-
-          # Update repository variable
           curl -X PATCH $GH_API_URL \
             -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -H "Content-Type: application/json" \
             -d "{\"value\": \"$NEW_VALUE\" }"
-
           echo "Updated FRONTEND_BUILD_NUMBER to $NEW_VALUE"
 
   deploy:
-    name: Deploy Frontend to EC2 Server
     needs: build-push
-    runs-on: ${{ github.run_id }} # Runs on the same EC2 spot runner
+    runs-on: ${{ github.run_id }}
 
     steps:
+      - name: Install AWS CLI and Docker (again, if needed)
+        run: |
+          which aws || (sudo apt-get update && sudo apt-get install -y unzip curl && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && sudo ./aws/install)
+          which docker || (sudo apt-get update && sudo apt-get install -y ca-certificates curl gnupg lsb-release && sudo mkdir -p /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null && sudo apt-get update && sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin)
+
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -128,8 +141,6 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ${{ secrets.FRONTEND_DEPLOY_FOLDER }}/client
-
-            # Set environment variables for docker-compose
             export FRONTEND_ECR_REGISTRY=${{ secrets.FRONTEND_ECR_REGISTRY }}
             export FRONTEND_ECR_REPOSITORY=${{ secrets.FRONTEND_ECR_REPOSITORY }}
             FRONTEND_BUILD_NUMBER=${{ vars.FRONTEND_BUILD_NUMBER }}
@@ -137,8 +148,7 @@ jobs:
             export IMAGE_TAG
             export AWS_REGION=${{ secrets.AWS_REGION }}
 
-            # Login to ECR
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $FRONTEND_ECR_REGISTRY
             docker pull $FRONTEND_ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:$IMAGE_TAG
-            docker-compose up -d 
+            docker-compose up -d
             docker image prune -f
