@@ -51,9 +51,9 @@ jobs:
               {"Key": "Owner", "Value": "deploybot"}
             ]
 
-  build-push:
+  build-push-deploy:
     needs: start-runner
-    runs-on: ${{ github.run_id }}
+    runs-on: ${{ github.run_id }} # <-- Uses the same dynamically created runner
     env:
       FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
       FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
@@ -82,8 +82,6 @@ jobs:
             $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-          sudo usermod -aG docker $USER
-          newgrp docker
           docker --version
 
       - name: Checkout Code
@@ -114,16 +112,6 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"value\": \"$NEW_VALUE\" }"
           echo "Updated FRONTEND_BUILD_NUMBER to $NEW_VALUE"
-
-
-     
-  deploy:
-    needs: build-push
-    runs-on: ${{ github.run_id }}
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
 
       - name: Copy docker-compose to EC2
         uses: appleboy/scp-action@v0.1.7
