@@ -44,8 +44,8 @@ jobs:
           ec2_security_group_id: "sg-020dee825ad3c6447"
           ec2_instance_type: t3.medium
           ec2_ami_id: "ami-04b4f1a9cf54c11d0"
-          ec2_instance_ttl: 15
-          ec2_spot_instance_strategy: SpotOnly
+          ec2_instance_ttl: 30
+          ec2_spot_instance_strategy: NoSpot
           ec2_instance_tags: >
             [
               {"Key": "Owner", "Value": "deploybot"}
