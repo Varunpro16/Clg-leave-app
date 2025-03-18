@@ -54,6 +54,11 @@ jobs:
   build-push:
     needs: start-runner
     runs-on: ${{ github.run_id }}
+    env:
+      FRONTEND_ECR_REGISTRY: ${{ secrets.FRONTEND_ECR_REGISTRY }}
+      FRONTEND_ECR_REPOSITORY: ${{ secrets.FRONTEND_ECR_REPOSITORY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      IMAGE_TAG: ${{ vars.FRONTEND_BUILD_NUMBER }}
 
     steps:
       - name: Install AWS CLI and Docker
