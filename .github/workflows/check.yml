@@ -40,8 +40,8 @@ jobs:
           aws_secret_access_key: ${{ steps.creds.outputs.aws-secret-access-key }}
           aws_session_token: ${{ steps.creds.outputs.aws-session-token }}
           aws_region: "us-east-1"
-          ec2_subnet_id: "subnet-0e0bc0e4a424fa3fe"
-          ec2_security_group_id: "sg-03567930adad748df"
+          ec2_subnet_id: "subnet-0526bdb1507c2592b"
+          ec2_security_group_id: "sg-020dee825ad3c6447"
           ec2_instance_type: t3.medium
           ec2_ami_id: "ami-04b4f1a9cf54c11d0"
           ec2_instance_ttl: 15
