@@ -115,13 +115,6 @@ jobs:
             -d "{\"value\": \"$NEW_VALUE\" }"
           echo "Updated FRONTEND_BUILD_NUMBER to $NEW_VALUE"
 
-  deploy:
-    needs: build-push
-    runs-on: ${{ github.run_id }}
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
 
       - name: Copy docker-compose to EC2
         uses: appleboy/scp-action@v0.1.7
