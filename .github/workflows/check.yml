@@ -43,7 +43,7 @@ jobs:
           ec2_subnet_id: "subnet-0526bdb1507c2592b"
           ec2_security_group_id: "sg-020dee825ad3c6447"
           ec2_instance_type: t3.medium
-          ec2_ami_id: "ami-08a586751e916c870"
+          ec2_ami_id: "ami-040452d372b77cf34"
           ec2_instance_ttl: 30
           ec2_spot_instance_strategy: None
           ec2_instance_tags: >
