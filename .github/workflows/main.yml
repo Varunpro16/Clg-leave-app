@@ -158,6 +158,33 @@ jobs:
           aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region ${{ secrets.AWS_REGION }}
 
           echo "Instance $INSTANCE_ID termination initiated"
+      - name: Remove Offline Runners from Repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} # Make sure you set this secret
+          OWNER: Varunpro16
+          REPO: Clg-leave-app
+        run: |
+          echo "Fetching offline runners for repo $OWNER/$REPO..."
+  
+          # Get list of runners
+          RUNNERS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            https://api.github.com/repos/$OWNER/$REPO/actions/runners)
+  
+          # Loop through runners and delete offline ones
+          echo "$RUNNERS" | jq -c '.runners[]' | while read runner; do
+            STATUS=$(echo "$runner" | jq -r '.status')
+            ID=$(echo "$runner" | jq -r '.id')
+            NAME=$(echo "$runner" | jq -r '.name')
+  
+            if [ "$STATUS" = "offline" ]; then
+              echo "Deleting offline runner: $NAME (ID: $ID)"
+              curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+                https://api.github.com/repos/$OWNER/$REPO/actions/runners/$ID
+            else
+              echo "Runner $NAME (ID: $ID) is $STATUS, skipping..."
+            fi
+          done
+
 
 
 
