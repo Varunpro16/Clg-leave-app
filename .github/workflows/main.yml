@@ -52,7 +52,7 @@ jobs:
     - name: Wait for Runner to Register (simple wait)
       run: |
         echo "Waiting 90 seconds for the runner to come online..."
-        sleep 90
+        sleep 60
 
   # --------- 2. Build and Deploy Frontend on EC2 Runner ----------
   build-and-deploy:
